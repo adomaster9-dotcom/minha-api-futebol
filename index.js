@@ -8,14 +8,18 @@ app.use(cors());
 
 app.get('/jogos', async (req, res) => {
     try {
+        // Headers para simular um navegador real e evitar bloqueios
         const { data } = await axios.get('https://ge.globo.com/central-de-jogos/', {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36' }
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+            },
+            timeout: 10000 // 10 segundos de limite
         });
         
         const $ = cheerio.load(data);
         const jogos = [];
 
-        // O GE organiza por blocos de campeonatos
         $('.lista-jogos-grupo').each((_, grupo) => {
             const liga = $(grupo).find('.lista-jogos-titulo').text().trim();
 
@@ -29,13 +33,12 @@ app.get('/jogos', async (req, res) => {
                 const placarHome = $(el).find('.jogo-placar-placar-mandante').text().trim();
                 const placarAway = $(el).find('.jogo-placar-placar-visitante').text().trim();
                 
-                // Pega o horário ou tempo de jogo (ex: 15:00 ou 22' 1T)
                 let status = $(el).find('.jogo-placar-informacoes-tempo').text().trim() || 
                              $(el).find('.jogo-placar-informacoes-horario').text().trim();
 
                 if (home && away) {
                     jogos.push({
-                        liga: liga,
+                        liga: liga || "Outros",
                         homeTeam: home,
                         awayTeam: away,
                         score: placarHome !== "" ? `${placarHome} - ${placarAway}` : "vs",
@@ -47,9 +50,13 @@ app.get('/jogos', async (req, res) => {
 
         res.json(jogos);
     } catch (error) {
-        res.status(500).json({ error: "Erro ao coletar dados" });
+        console.error("Erro na raspagem:", error.message);
+        res.status(500).json({ error: "Erro ao coletar dados", detalhes: error.message });
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API Ativa na porta ${PORT}`));
+// AJUSTE DE PORTA PARA O RENDER
+const PORT = process.env.PORT || 10000; 
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
